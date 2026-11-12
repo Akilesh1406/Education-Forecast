@@ -3,25 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Hero } from "@/components/Hero";
 import { Features } from "@/components/Features";
-import { ThemeColorPicker } from "@/components/ThemeColorPicker";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/student/dashboard');
+      if (role === 'admin') {
+        navigate('/admin');
+      } else if (role === 'faculty') {
+        navigate('/faculty/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, role, loading, navigate]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">
+        Loading Education Forecast...
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen">
-      <ThemeColorPicker />
+    <div className="min-h-screen bg-background text-foreground">
       <Hero />
       <Features />
     </div>

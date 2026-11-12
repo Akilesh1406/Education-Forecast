@@ -7,13 +7,241 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
+      departments: {
+        Row: {
+          id: number
+          code: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          code: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          code?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      faculty_assignments: {
+        Row: {
+          id: string
+          faculty_id: string
+          department: string
+          semester: number
+          course_id: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          faculty_id: string
+          department: string
+          semester: number
+          course_id?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          faculty_id?: string
+          department?: string
+          semester?: number
+          course_id?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faculty_assignments_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "faculty_assignments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      academic_records: {
+        Row: {
+          id: number
+          student_id: string
+          semester: number
+          previous_cgpa: number | null
+          attendance_percentage: number | null
+          internal_exam_marks: number | null
+          assignment_marks: number | null
+          study_hours_weekly: number | null
+          subject_marks_avg: number | null
+          credits_completed: number | null
+          actual_sgpa: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          student_id: string
+          semester: number
+          previous_cgpa?: number | null
+          attendance_percentage?: number | null
+          internal_exam_marks?: number | null
+          assignment_marks?: number | null
+          study_hours_weekly?: number | null
+          subject_marks_avg?: number | null
+          credits_completed?: number | null
+          actual_sgpa?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          student_id?: string
+          semester?: number
+          previous_cgpa?: number | null
+          attendance_percentage?: number | null
+          internal_exam_marks?: number | null
+          assignment_marks?: number | null
+          study_hours_weekly?: number | null
+          subject_marks_avg?: number | null
+          credits_completed?: number | null
+          actual_sgpa?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
+      model_versions: {
+        Row: {
+          id: number
+          version_tag: string
+          algorithm: string
+          mae: number
+          rmse: number
+          r2_score: number
+          feature_names: Json
+          feature_importances: Json
+          hyperparameters: Json | null
+          is_active: boolean
+          trained_by: string | null
+          trained_at: string
+        }
+        Insert: {
+          id?: number
+          version_tag: string
+          algorithm: string
+          mae: number
+          rmse: number
+          r2_score: number
+          feature_names: Json
+          feature_importances: Json
+          hyperparameters?: Json | null
+          is_active?: boolean
+          trained_by?: string | null
+          trained_at?: string
+        }
+        Update: {
+          id?: number
+          version_tag?: string
+          algorithm?: string
+          mae?: number
+          rmse?: number
+          r2_score?: number
+          feature_names?: Json
+          feature_importances?: Json
+          hyperparameters?: Json | null
+          is_active?: boolean
+          trained_by?: string | null
+          trained_at?: string
+        }
+        Relationships: []
+      }
+      dataset_uploads: {
+        Row: {
+          id: string
+          uploaded_by: string | null
+          filename: string
+          total_rows: number
+          valid_rows: number
+          invalid_rows: number
+          status: string
+          error_log: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          uploaded_by?: string | null
+          filename: string
+          total_rows: number
+          valid_rows: number
+          invalid_rows: number
+          status: string
+          error_log?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          uploaded_by?: string | null
+          filename?: string
+          total_rows?: number
+          valid_rows?: number
+          invalid_rows?: number
+          status?: string
+          error_log?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: number
+          user_id: string | null
+          action: string
+          entity: string
+          entity_id: string | null
+          details: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          user_id?: string | null
+          action: string
+          entity: string
+          entity_id?: string | null
+          details?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string | null
+          action?: string
+          entity?: string
+          entity_id?: string | null
+          details?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           course_code: string
@@ -110,6 +338,9 @@ export type Database = {
           recommendation: string | null
           student_id: string
           updated_at: string
+          risk_category: string | null
+          model_version: string | null
+          feature_importances: Json | null
         }
         Insert: {
           created_at?: string
@@ -122,6 +353,9 @@ export type Database = {
           recommendation?: string | null
           student_id: string
           updated_at?: string
+          risk_category?: string | null
+          model_version?: string | null
+          feature_importances?: Json | null
         }
         Update: {
           created_at?: string
@@ -134,6 +368,9 @@ export type Database = {
           recommendation?: string | null
           student_id?: string
           updated_at?: string
+          risk_category?: string | null
+          model_version?: string | null
+          feature_importances?: Json | null
         }
         Relationships: [
           {
@@ -155,16 +392,18 @@ export type Database = {
           semester: number
           updated_at: string
           user_id: string
+          phone?: string | null
         }
         Insert: {
           created_at?: string
-          department: string
+          department?: string
           email: string
           id?: string
           name: string
           semester?: number
           updated_at?: string
           user_id: string
+          phone?: string | null
         }
         Update: {
           created_at?: string
@@ -175,6 +414,7 @@ export type Database = {
           semester?: number
           updated_at?: string
           user_id?: string
+          phone?: string | null
         }
         Relationships: []
       }
@@ -259,9 +499,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_leaderboard: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          rank: number
+          department: string
+          semester: number
+          predicted_cgpa: number
+          masked_identifier: string
+        }[]
+      }
     }
     Enums: {
-      app_role: "admin" | "student"
+      app_role: "admin" | "faculty" | "student"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -271,7 +521,10 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof DatabaseWithoutInternals,
+  "public"
+>]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -369,27 +622,10 @@ export type Enums<
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "student"],
+      app_role: ["admin", "faculty", "student"],
     },
   },
 } as const

@@ -1,15 +1,15 @@
-
-import Navigation from '@/components/Navigation';
+import React, { useState, useEffect } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -18,248 +18,377 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/integrations/supabase/types';
-import { BookOpen, Plus, TrendingUp, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
+  Users,
+  BookOpen,
+  TrendingUp,
+  ShieldCheck,
+  UserCheck,
+  GraduationCap,
+  Plus,
+  FileSpreadsheet,
+  BarChart3,
+  Search,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import type { UserRole } from '@/types';
+
+interface UserRecord {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  department: string;
+  semester: number;
+  role: UserRole;
+}
+
+interface CourseRecord {
+  id: number;
+  course_code: string;
+  course_name: string;
+  department: string;
+  semester: number;
+  credits: number;
+  is_lab: boolean;
+}
 
 export default function AdminDashboard() {
-  const [students, setStudents] = useState<Tables<'profiles'>[]>([]);
-  const [courses, setCourses] = useState<Tables<'courses'>[]>([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalCourses: 0,
-    avgCGPA: 0,
-  });
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [courses, setCourses] = useState<CourseRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
+  // Course creation form
   const [newCourse, setNewCourse] = useState({
-    semester: '1',
-    department: 'AI & DS',
     course_code: '',
     course_name: '',
+    department: 'Artificial Intelligence & Data Science',
+    semester: '1',
     credits: '3',
     is_lab: false,
   });
 
-  const { toast } = useToast();
+  // Role change confirmation dialog state
+  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+  const [targetRole, setTargetRole] = useState<UserRole>('student');
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchAdminData();
   }, []);
 
-  const fetchData = async () => {
-    // Fetch students
-    const { data: studentsData } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const fetchAdminData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch profiles
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    setStudents(studentsData || []);
+      // 2. Fetch roles
+      const { data: roles } = await supabase.from('user_roles').select('*');
 
-    // Fetch courses
-    const { data: coursesData } = await supabase
-      .from('courses')
-      .select('*')
-      .order('semester', { ascending: true });
+      // 3. Fetch courses
+      const { data: coursesData } = await supabase
+        .from('courses')
+        .select('*')
+        .order('semester', { ascending: true });
 
-    setCourses(coursesData || []);
+      const roleMap = new Map<string, UserRole>();
+      (roles || []).forEach((r) => {
+        roleMap.set(r.user_id, r.role as UserRole);
+      });
 
-    // Calculate statistics
-    const { data: predictions } = await supabase
-      .from('predictions')
-      .select('predicted_cgpa');
+      const userRecords: UserRecord[] = (profiles || []).map((p) => ({
+        id: p.id,
+        user_id: p.user_id,
+        name: p.name,
+        email: p.email,
+        department: p.department,
+        semester: p.semester,
+        role: roleMap.get(p.user_id) || 'student',
+      }));
 
-    const avgCGPA =
-      predictions && predictions.length > 0
-        ? predictions.reduce(
-            (sum, prediction) =>
-              sum + (prediction.predicted_cgpa || 0),
-            0
-          ) / predictions.length
-        : 0;
-
-    setStats({
-      totalStudents: studentsData?.length || 0,
-      totalCourses: coursesData?.length || 0,
-      avgCGPA,
-    });
+      setUsers(userRecords);
+      setCourses(coursesData || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const { error } = await supabase.from('courses').insert([
+        {
+          course_code: newCourse.course_code.toUpperCase(),
+          course_name: newCourse.course_name,
+          department: newCourse.department,
+          semester: parseInt(newCourse.semester, 10),
+          credits: parseInt(newCourse.credits, 10),
+          is_lab: newCourse.is_lab,
+        },
+      ]);
 
-    const { error } = await supabase.from('courses').insert([
-      {
-        semester: parseInt(newCourse.semester),
-        department: newCourse.department,
-        course_code: newCourse.course_code,
-        course_name: newCourse.course_name,
-        credits: parseInt(newCourse.credits),
-        is_lab: newCourse.is_lab,
-      },
-    ]);
+      if (error) throw error;
 
-    if (error) {
       toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Success',
-        description: 'Course added successfully!',
+        title: 'Course Registered',
+        description: `Successfully added ${newCourse.course_code} - ${newCourse.course_name}.`,
       });
 
       setNewCourse({
-        semester: '1',
-        department: 'AI & DS',
         course_code: '',
         course_name: '',
+        department: 'Artificial Intelligence & Data Science',
+        semester: '1',
         credits: '3',
         is_lab: false,
       });
 
-      fetchData();
-    }
-  };
-
-  const makeAdmin = async (userId: string) => {
-    const { error } = await supabase.from('user_roles').insert([
-      {
-        user_id: userId,
-        role: 'admin',
-      },
-    ]);
-
-    if (error) {
+      fetchAdminData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error inserting course.';
       toast({
-        title: 'Error',
-        description: error.message,
+        title: 'Failed to add course',
+        description: msg,
         variant: 'destructive',
       });
-    } else {
+    }
+  };
+
+  const confirmRoleChange = (targetUser: UserRecord, newRole: UserRole) => {
+    setSelectedUser(targetUser);
+    setTargetRole(newRole);
+    setIsRoleDialogOpen(true);
+  };
+
+  const executeRoleChange = async () => {
+    if (!selectedUser) return;
+
+    try {
+      // Upsert into user_roles
+      const { error } = await supabase.from('user_roles').upsert(
+        [
+          {
+            user_id: selectedUser.user_id,
+            role: targetRole,
+          },
+        ],
+        { onConflict: 'user_id,role' }
+      );
+
+      if (error) throw error;
+
+      // Log action into audit_logs
+      if (user?.id) {
+        await supabase.from('audit_logs').insert([
+          {
+            user_id: user.id,
+            action: 'USER_ROLE_CHANGE',
+            entity: 'user_roles',
+            entity_id: selectedUser.user_id,
+            details: {
+              target_user: selectedUser.email,
+              new_role: targetRole,
+            },
+          },
+        ]);
+      }
+
       toast({
-        title: 'Success',
-        description: 'Admin role granted!',
+        title: 'Permissions Updated',
+        description: `Assigned role "${targetRole}" to ${selectedUser.name}.`,
+      });
+
+      setIsRoleDialogOpen(false);
+      fetchAdminData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update user role.';
+      toast({
+        title: 'Error updating role',
+        description: msg,
+        variant: 'destructive',
       });
     }
   };
 
+  const filteredUsers = users.filter((u) =>
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.department.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <Navigation />
+    <AppLayout pageTitle="Administrator Control Center">
+      <div className="space-y-6">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Institution access management, curriculum registration, and operational datasets.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/datasets">
+              <Button variant="outline" size="sm" className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Dataset Manager
+              </Button>
+            </Link>
+            <Link to="/analytics">
+              <Button size="sm" className="gap-2 bg-primary">
+                <BarChart3 className="w-4 h-4" />
+                Institution Analytics
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-      <div className="container mx-auto p-8">
-        <h1 className="text-4xl font-bold gradient-text mb-8">
-          Admin Dashboard
-        </h1>
-
-        {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
-          <Card className="glass-card">
+        {/* 3 Overview KPI Cards */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Students
-              </CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">Total Accounts</CardTitle>
               <Users className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.totalStudents}
-              </div>
+              <div className="text-2xl font-bold">{users.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Students, Faculty & Staff</p>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Courses
-              </CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">Registered Courses</CardTitle>
               <BookOpen className="w-4 h-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.totalCourses}
-              </div>
+              <div className="text-2xl font-bold">{courses.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Across all departments</p>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Average CGPA
-              </CardTitle>
-              <TrendingUp className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium text-muted-foreground">Security Status</CardTitle>
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.avgCGPA.toFixed(2)}
-              </div>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">Enforced</div>
+              <p className="text-xs text-muted-foreground mt-1">Row Level Security active</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="students" className="space-y-6">
+        {/* Tabs: User Management vs Course Curriculum vs Add Course */}
+        <Tabs defaultValue="users" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="courses">Courses</TabsTrigger>
-            <TabsTrigger value="add-course">Add Course</TabsTrigger>
+            <TabsTrigger value="users">User Access & Roles</TabsTrigger>
+            <TabsTrigger value="courses">Curriculum Courses ({courses.length})</TabsTrigger>
+            <TabsTrigger value="add-course">Register New Course</TabsTrigger>
           </TabsList>
 
-          {/* Students Tab */}
-          <TabsContent value="students">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>All Students</CardTitle>
-                <CardDescription>
-                  Manage student accounts and permissions
-                </CardDescription>
+          {/* User Management Tab */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">User Directory & Role Authorization</CardTitle>
+                    <CardDescription className="text-xs">
+                      Control permissions for Student, Faculty, and Administrator roles
+                    </CardDescription>
+                  </div>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search accounts..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 text-xs h-8"
+                    />
+                  </div>
+                </div>
               </CardHeader>
-
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Semester</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>Current Role</TableHead>
+                      <TableHead className="text-right">Assign Role</TableHead>
                     </TableRow>
                   </TableHeader>
-
                   <TableBody>
-                    {students.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">
-                          {student.name}
-                        </TableCell>
-                        <TableCell>{student.email}</TableCell>
-                        <TableCell>{student.department}</TableCell>
-                        <TableCell>{student.semester}</TableCell>
+                    {filteredUsers.map((u) => (
+                      <TableRow key={u.user_id}>
                         <TableCell>
+                          <div className="font-semibold text-sm">{u.name}</div>
+                          <div className="text-xs text-muted-foreground">{u.email}</div>
+                        </TableCell>
+                        <TableCell className="text-xs">{u.department}</TableCell>
+                        <TableCell className="text-xs">{u.semester}</TableCell>
+                        <TableCell>
+                          {u.role === 'admin' ? (
+                            <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 gap-1 text-[11px]">
+                              <ShieldCheck className="w-3 h-3" />
+                              Admin
+                            </Badge>
+                          ) : u.role === 'faculty' ? (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1 text-[11px]">
+                              <UserCheck className="w-3 h-3" />
+                              Faculty
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1 text-[11px]">
+                              <GraduationCap className="w-3 h-3" />
+                              Student
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right space-x-1">
                           <Button
+                            variant="ghost"
                             size="sm"
-                            variant="outline"
-                            onClick={() => makeAdmin(student.user_id)}
+                            className="h-7 text-xs"
+                            onClick={() => confirmRoleChange(u, 'student')}
+                            disabled={u.role === 'student'}
                           >
-                            Make Admin
+                            Student
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-blue-600 hover:text-blue-700"
+                            onClick={() => confirmRoleChange(u, 'faculty')}
+                            disabled={u.role === 'faculty'}
+                          >
+                            Faculty
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-purple-600 hover:text-purple-700"
+                            onClick={() => confirmRoleChange(u, 'admin')}
+                            disabled={u.role === 'admin'}
+                          >
+                            Admin
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -270,21 +399,20 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Courses Tab */}
+          {/* Curriculum Courses Tab */}
           <TabsContent value="courses">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>All Courses</CardTitle>
-                <CardDescription>
-                  View all courses across departments
+                <CardTitle className="text-base">Institutional Curriculum Registry</CardTitle>
+                <CardDescription className="text-xs">
+                  Active courses and laboratory requirements
                 </CardDescription>
               </CardHeader>
-
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Code</TableHead>
+                      <TableHead>Course Code</TableHead>
                       <TableHead>Course Name</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Semester</TableHead>
@@ -292,21 +420,18 @@ export default function AdminDashboard() {
                       <TableHead>Type</TableHead>
                     </TableRow>
                   </TableHeader>
-
                   <TableBody>
-                    {courses.map((course) => (
-                      <TableRow key={course.id}>
-                        <TableCell className="font-mono">
-                          {course.course_code}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {course.course_name}
-                        </TableCell>
-                        <TableCell>{course.department}</TableCell>
-                        <TableCell>{course.semester}</TableCell>
-                        <TableCell>{course.credits}</TableCell>
+                    {courses.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-mono font-bold text-xs">{c.course_code}</TableCell>
+                        <TableCell className="font-medium text-sm">{c.course_name}</TableCell>
+                        <TableCell className="text-xs">{c.department}</TableCell>
+                        <TableCell className="text-xs">Semester {c.semester}</TableCell>
+                        <TableCell>{c.credits}</TableCell>
                         <TableCell>
-                          {course.is_lab ? 'Lab' : 'Theory'}
+                          <Badge variant="outline" className="text-[10px]">
+                            {c.is_lab ? 'Lab Session' : 'Theory Course'}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -318,33 +443,71 @@ export default function AdminDashboard() {
 
           {/* Add Course Tab */}
           <TabsContent value="add-course">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="w-5 h-5" />
-                  Add New Course
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-primary" />
+                  Add Course to Catalog
                 </CardTitle>
-                <CardDescription>
-                  Register a new course in the system
+                <CardDescription className="text-xs">
+                  Register a syllabus subject for attendance and CGPA calculation
                 </CardDescription>
               </CardHeader>
-
               <CardContent>
-                <form onSubmit={handleAddCourse} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="semester">Semester</Label>
+                <form onSubmit={handleAddCourse} className="space-y-4 max-w-xl">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="code">Course Code</Label>
+                      <Input
+                        id="code"
+                        placeholder="e.g. AI401"
+                        value={newCourse.course_code}
+                        onChange={(e) => setNewCourse({ ...newCourse, course_code: e.target.value })}
+                        required
+                      />
+                    </div>
 
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name">Course Title</Label>
+                      <Input
+                        id="name"
+                        placeholder="e.g. Machine Learning"
+                        value={newCourse.course_name}
+                        onChange={(e) => setNewCourse({ ...newCourse, course_name: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cDept">Department</Label>
                       <Select
-                        value={newCourse.semester}
-                        onValueChange={(v) =>
-                          setNewCourse({ ...newCourse, semester: v })
-                        }
+                        value={newCourse.department}
+                        onValueChange={(v) => setNewCourse({ ...newCourse, department: v })}
                       >
-                        <SelectTrigger id="semester">
+                        <SelectTrigger id="cDept">
                           <SelectValue />
                         </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Artificial Intelligence & Data Science">AI & DS</SelectItem>
+                          <SelectItem value="Computer Science & Engineering">CSE</SelectItem>
+                          <SelectItem value="Information Technology">IT</SelectItem>
+                          <SelectItem value="Mechanical Engineering">Mechanical</SelectItem>
+                          <SelectItem value="Civil Engineering">Civil</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cSem">Semester</Label>
+                      <Select
+                        value={newCourse.semester}
+                        onValueChange={(v) => setNewCourse({ ...newCourse, semester: v })}
+                      >
+                        <SelectTrigger id="cSem">
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                             <SelectItem key={s} value={s.toString()}>
@@ -354,124 +517,71 @@ export default function AdminDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="department">Department</Label>
-
-                      <Select
-                        value={newCourse.department}
-                        onValueChange={(v) =>
-                          setNewCourse({ ...newCourse, department: v })
-                        }
-                      >
-                        <SelectTrigger id="department">
-                          <SelectValue />
-                        </SelectTrigger>
-
-                        <SelectContent>
-                          <SelectItem value="AI & DS">AI & DS</SelectItem>
-                          <SelectItem value="Information Technology">
-                            Information Technology
-                          </SelectItem>
-                          <SelectItem value="Automobile Engineering">
-                            Automobile Engineering
-                          </SelectItem>
-                          <SelectItem value="Civil Engineering">
-                            Civil Engineering
-                          </SelectItem>
-                          <SelectItem value="Mechanical Engineering">
-                            Mechanical Engineering
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="course_code">Course Code</Label>
-                    <Input
-                      id="course_code"
-                      value={newCourse.course_code}
-                      onChange={(e) =>
-                        setNewCourse({
-                          ...newCourse,
-                          course_code: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., CS101"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="course_name">Course Name</Label>
-                    <Input
-                      id="course_name"
-                      value={newCourse.course_name}
-                      onChange={(e) =>
-                        setNewCourse({
-                          ...newCourse,
-                          course_name: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., Data Structures"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
                       <Label htmlFor="credits">Credits</Label>
                       <Input
                         id="credits"
                         type="number"
                         min="1"
-                        max="10"
+                        max="8"
                         value={newCourse.credits}
-                        onChange={(e) =>
-                          setNewCourse({
-                            ...newCourse,
-                            credits: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setNewCourse({ ...newCourse, credits: e.target.value })}
                         required
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="type">Type</Label>
-
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cType">Course Type</Label>
                       <Select
                         value={newCourse.is_lab ? 'lab' : 'theory'}
-                        onValueChange={(v) =>
-                          setNewCourse({
-                            ...newCourse,
-                            is_lab: v === 'lab',
-                          })
-                        }
+                        onValueChange={(v) => setNewCourse({ ...newCourse, is_lab: v === 'lab' })}
                       >
-                        <SelectTrigger id="type">
+                        <SelectTrigger id="cType">
                           <SelectValue />
                         </SelectTrigger>
-
                         <SelectContent>
-                          <SelectItem value="theory">Theory</SelectItem>
-                          <SelectItem value="lab">Lab</SelectItem>
+                          <SelectItem value="theory">Theory Course</SelectItem>
+                          <SelectItem value="lab">Laboratory Session</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Course
+                  <Button type="submit" className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Register Course
                   </Button>
                 </form>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Confirmation Dialog for Role Modification */}
+        <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Role Assignment</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to change the role for{' '}
+                <strong className="text-foreground">{selectedUser?.name}</strong> ({selectedUser?.email}) to{' '}
+                <strong className="text-primary capitalize">{targetRole}</strong>?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="pt-2">
+              <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={executeRoleChange} className="bg-primary">
+                Confirm & Apply Role
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-    </div>
+    </AppLayout>
   );
 }

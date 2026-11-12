@@ -1,0 +1,17 @@
+registration_number,name,department,semester,attendance_percentage,previous_cgpa,internal_exam_marks,assignment_marks,study_hours_weekly,subject_marks_avg,credits_completed,actual_next_cgpa
+STU2024001,Aarav Sharma,Artificial Intelligence & Data Science,4,88.5,8.42,85.0,92.0,18.5,84.0,64,8.55
+STU2024002,Priya Patel,Computer Science & Engineering,4,92.0,8.85,90.5,95.0,22.0,89.5,64,8.92
+STU2024003,Rahul Verma,Information Technology,4,68.0,6.20,62.0,70.0,10.0,64.0,60,6.35
+STU2024004,Ananya Iyer,Artificial Intelligence & Data Science,4,95.0,9.30,94.0,98.0,25.0,92.5,64,9.40
+STU2024005,Vikram Singh,Mechanical Engineering,4,58.5,5.40,52.0,60.0,7.0,55.0,56,5.25
+STU2024006,Sneha Reddy,Civil Engineering,4,82.0,7.60,78.0,85.0,14.0,77.5,64,7.70
+STU2024007,Rohan Gupta,Automobile Engineering,4,74.0,6.90,70.0,78.0,12.0,71.0,60,7.05
+STU2024008,Kavya Nair,Computer Science & Engineering,4,89.0,8.60,86.0,90.0,19.0,85.5,64,8.68
+STU2024009,Aditya Kulkarni,Information Technology,4,63.0,5.90,58.0,65.0,8.5,60.0,58,5.80
+STU2024010,Meera Joshi,Artificial Intelligence & Data Science,4,91.0,8.75,88.0,94.0,20.0,87.0,64,8.82
+STU2024011,Karan Malhotra,Automobile Engineering,4,70.0,6.40,65.0,72.0,11.0,66.0,60,6.50
+STU2024012,Divya Sundaram,Computer Science & Engineering,4,85.0,8.10,82.0,88.0,16.0,81.5,64,8.22
+STU2024013,Siddharth Rao,Mechanical Engineering,4,61.0,5.65,55.0,62.0,8.0,57.0,56,5.50
+STU2024014,Pooja Hegde,Information Technology,4,93.5,9.10,91.0,96.0,23.5,90.0,64,9.15
+STU2024015,Arjun Das,Civil Engineering,4,77.0,7.25,74.0,80.0,13.0,73.5,64,7.30
+

@@ -1,9 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 // Linear Regression utilities
 function mean(values: number[]): number {
@@ -23,21 +24,21 @@ function extractFeatures(
     exam2_score: number | null;
     exam3_score: number | null;
     final_score: number | null;
-  }>
+  }>,
 ) {
   const attendances = performanceFactors
-    .map(p => p.attendance)
+    .map((p) => p.attendance)
     .filter((a): a is number => a !== null);
   const avgAttendance = mean(attendances);
 
   const studyHours = performanceFactors
-    .map(p => p.study_hours_weekly)
+    .map((p) => p.study_hours_weekly)
     .filter((h): h is number => h !== null)
-    .map(h => h / 7);
+    .map((h) => h / 7);
   const avgStudyHours = mean(studyHours);
 
   const allScores: number[] = [];
-  scores.forEach(s => {
+  scores.forEach((s) => {
     if (s.exam1_score !== null) allScores.push(s.exam1_score);
     if (s.exam2_score !== null) allScores.push(s.exam2_score);
     if (s.exam3_score !== null) allScores.push(s.exam3_score);
@@ -46,13 +47,14 @@ function extractFeatures(
   const avgExamScore = mean(allScores);
 
   const confidences = performanceFactors
-    .map(p => p.confidence_percentage)
+    .map((p) => p.confidence_percentage)
     .filter((c): c is number => c !== null);
   const avgConfidence = mean(confidences);
 
-  const trends = performanceFactors.map(p => p.trend).filter(Boolean);
-  const improvingCount = trends.filter(t => t === 'Improving').length;
-  const improvingTrends = trends.length > 0 ? (improvingCount / trends.length) * 100 : 50;
+  const trends = performanceFactors.map((p) => p.trend).filter(Boolean);
+  const improvingCount = trends.filter((t) => t === "Improving").length;
+  const improvingTrends =
+    trends.length > 0 ? (improvingCount / trends.length) * 100 : 50;
 
   return {
     avgAttendance,
@@ -70,6 +72,7 @@ function predictCGPA(features: {
   avgConfidence: number;
   improvingTrends: number;
 }): number {
+  // Linear regression coefficients (pre-trained)
   // Linear regression coefficients (pre-trained)
   const coefficients = {
     attendance: 0.03,
@@ -99,94 +102,113 @@ function generateRecommendation(
     avgConfidence: number;
     improvingTrends: number;
   },
-  predictedCGPA: number
+  predictedCGPA: number,
 ): { recommendation: string; focusSubject: string } {
   const recommendations: string[] = [];
-  let focusArea = 'General Studies';
+  let focusArea = "General Studies";
 
   if (features.avgAttendance < 75) {
-    recommendations.push('Improve your attendance to at least 75% to maintain eligibility and better understanding.');
-    focusArea = 'Attendance';
+    recommendations.push(
+      "Improve your attendance to at least 75% to maintain eligibility and better understanding.",
+    );
+    focusArea = "Attendance";
   }
 
   if (features.avgStudyHours < 3) {
-    recommendations.push('Increase daily study time to at least 3 hours for better retention.');
-    if (focusArea === 'General Studies') focusArea = 'Study Habits';
+    recommendations.push(
+      "Increase daily study time to at least 3 hours for better retention.",
+    );
+    if (focusArea === "General Studies") focusArea = "Study Habits";
   }
 
   if (features.avgExamScore < 60) {
-    recommendations.push('Focus on improving exam preparation with regular revision and practice tests.');
-    if (focusArea === 'General Studies') focusArea = 'Exam Preparation';
+    recommendations.push(
+      "Focus on improving exam preparation with regular revision and practice tests.",
+    );
+    if (focusArea === "General Studies") focusArea = "Exam Preparation";
   }
 
   if (features.avgConfidence < 70) {
-    recommendations.push('Build confidence through more practice problems and group study sessions.');
+    recommendations.push(
+      "Build confidence through more practice problems and group study sessions.",
+    );
   }
 
   if (predictedCGPA >= 8.5) {
-    recommendations.unshift('Excellent trajectory! Maintain current study patterns for top performance.');
+    recommendations.unshift(
+      "Excellent trajectory! Maintain current study patterns for top performance.",
+    );
   } else if (predictedCGPA >= 7) {
-    recommendations.unshift('Good progress! A little more focus can push you to excellence.');
+    recommendations.unshift(
+      "Good progress! A little more focus can push you to excellence.",
+    );
   } else if (predictedCGPA >= 5) {
-    recommendations.unshift('Room for improvement. Consistent effort will help raise your CGPA.');
+    recommendations.unshift(
+      "Room for improvement. Consistent effort will help raise your CGPA.",
+    );
   } else {
-    recommendations.unshift('Needs attention. Consider seeking academic support and tutoring.');
+    recommendations.unshift(
+      "Needs attention. Consider seeking academic support and tutoring.",
+    );
   }
 
   return {
-    recommendation: recommendations.slice(0, 2).join(' '),
+    recommendation: recommendations.slice(0, 2).join(" "),
     focusSubject: focusArea,
   };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { student_id } = await req.json();
 
     if (!student_id) {
-      return new Response(
-        JSON.stringify({ error: 'student_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "student_id is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fetch student's performance factors
     const { data: perfData, error: perfError } = await supabase
-      .from('performance_factors')
-      .select('attendance, study_hours_weekly, confidence_percentage, trend')
-      .eq('student_id', student_id);
+      .from("performance_factors")
+      .select("attendance, study_hours_weekly, confidence_percentage, trend")
+      .eq("student_id", student_id);
 
     if (perfError) throw perfError;
 
     // Fetch student's scores
     const { data: scoresData, error: scoresError } = await supabase
-      .from('scores')
-      .select('exam1_score, exam2_score, exam3_score, final_score')
-      .eq('student_id', student_id);
+      .from("scores")
+      .select("exam1_score, exam2_score, exam3_score, final_score")
+      .eq("student_id", student_id);
 
     if (scoresError) throw scoresError;
 
     // Extract features and predict
     const features = extractFeatures(perfData || [], scoresData || []);
     const predictedCGPA = predictCGPA(features);
-    const { recommendation, focusSubject } = generateRecommendation(features, predictedCGPA);
+    const { recommendation, focusSubject } = generateRecommendation(
+      features,
+      predictedCGPA,
+    );
 
     // Calculate class statistics
     const { data: allPredictions } = await supabase
-      .from('predictions')
-      .select('predicted_cgpa');
+      .from("predictions")
+      .select("predicted_cgpa");
 
     const allCGPAs = (allPredictions || [])
-      .map(p => p.predicted_cgpa)
+      .map((p) => p.predicted_cgpa)
       .filter((c): c is number => c !== null);
 
     const avgCGPA = mean(allCGPAs);
@@ -194,10 +216,10 @@ Deno.serve(async (req) => {
 
     // Update or insert prediction
     const { data: existingPred } = await supabase
-      .from('predictions')
-      .select('id')
-      .eq('student_id', student_id)
-      .order('created_at', { ascending: false })
+      .from("predictions")
+      .select("id")
+      .eq("student_id", student_id)
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -213,13 +235,11 @@ Deno.serve(async (req) => {
 
     if (existingPred) {
       await supabase
-        .from('predictions')
+        .from("predictions")
         .update(predictionData)
-        .eq('id', existingPred.id);
+        .eq("id", existingPred.id);
     } else {
-      await supabase
-        .from('predictions')
-        .insert(predictionData);
+      await supabase.from("predictions").insert(predictionData);
     }
 
     return new Response(
@@ -234,14 +254,15 @@ Deno.serve(async (req) => {
           features,
         },
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
-    console.error('Prediction error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Prediction error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

@@ -1,0 +1,52 @@
+{
+  "version_tag": "v2.0-champion",
+  "algorithm": "Ridge Regression",
+  "metrics": {
+    "mae": 0.1821,
+    "rmse": 0.23,
+    "r2_score": 0.9434,
+    "cv_r2_mean": 0.9552
+  },
+  "feature_names": [
+    "attendance_percentage",
+    "previous_cgpa",
+    "internal_exam_marks",
+    "assignment_marks",
+    "study_hours_weekly",
+    "subject_marks_avg",
+    "credits_completed"
+  ],
+  "feature_importances": {
+    "attendance_percentage": 9.98,
+    "previous_cgpa": 43.57,
+    "internal_exam_marks": 23.44,
+    "assignment_marks": 8.04,
+    "study_hours_weekly": 10.8,
+    "subject_marks_avg": 3.14,
+    "credits_completed": 1.03
+  },
+  "target": "actual_next_cgpa",
+  "benchmark_dataset": "dataset\\college_academic_dataset.csv",
+  "total_training_records": 960,
+  "total_test_records": 240,
+  "comparison": {
+    "Ridge Regression": {
+      "mae": 0.1821,
+      "rmse": 0.23,
+      "r2_score": 0.9434,
+      "cv_r2_mean": 0.9552
+    },
+    "Random Forest Regressor": {
+      "mae": 0.1992,
+      "rmse": 0.2468,
+      "r2_score": 0.9348,
+      "cv_r2_mean": 0.9454
+    },
+    "Gradient Boosting Regressor": {
+      "mae": 0.2018,
+      "rmse": 0.2521,
+      "r2_score": 0.932,
+      "cv_r2_mean": 0.945
+    }
+  }
+}
