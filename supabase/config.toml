@@ -1,0 +1,4 @@
+project_id = "uirzwdxdvfdfbhrxvhku"
+
+[functions.predict-cgpa]
+verify_jwt = false
